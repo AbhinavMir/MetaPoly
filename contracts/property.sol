@@ -9,15 +9,14 @@ contract Property {
     {
         address owner;
         bytes23 name;
+        uint8 id;
         uint8 baseRent;
-        uint8 houses;
+        uint8 houseCounter;
         uint8 rentMultiplier;
         uint8 mortgage;
-    }
-
-    constructor(address _banker, address[] memory _players) {
-        _banker = banker;
-        _players = players;
+        bool utility;
+        bool railroad;
+        bool mortgaged;
     }
 
     function addPlayers(address _player) public

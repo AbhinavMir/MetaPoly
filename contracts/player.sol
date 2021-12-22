@@ -9,8 +9,7 @@ contract PlayerContract{
     {
         string name;
         uint256 balance;
-        string[] properties;
-
+        string[] propertiesByID;
     }
 
 }
