@@ -7,14 +7,20 @@ contract Banker {
     address public banker;
     address[] public players;
 
-    constructor(address _banker, address[] _players) {
+    constructor(address _banker, address[] memory _players) {
         _banker = banker;
         _players = players;
     }
 
-    function addPlayers() public
+    function addPlayers(address _player) public
     {
+        require(players.length < 4);
+        players.push(_player);
+    }
 
+    function removePlayer(uint _index) public
+    {
+        delete players[_index];
     }
 
     function distributeCapital() public 
