@@ -5,7 +5,7 @@ contract Property {
     address public banker;
     address[] public players;
 
-    struct _property
+    struct ownedProperty
     {
         address owner;
         bytes23 name;
@@ -32,6 +32,6 @@ contract Property {
 
     function distributeCapital() public 
     {
-
+        /// @dev Initiate game with function
     }
 }

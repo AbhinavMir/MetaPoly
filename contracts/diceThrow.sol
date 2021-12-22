@@ -32,7 +32,7 @@ contract DiceThrowGenerator is VRFConsumerBase {
     }
 
     function getRandomNumber() public returns (bytes32 requestId) {
-        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK - fill contract with faucet");
+        require(LINK.balanceOf(address(this)) >= fee, "Not enough LINK");
         return requestRandomness(keyHash, fee);
     }
 

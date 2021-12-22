@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./property.sol";
 
-contract Banker {
+contract Government {
     address public banker;
     address[] public players;
 
@@ -25,6 +25,16 @@ contract Banker {
     }
 
     function distributeCapital() public 
+    {
+
+    }
+
+    function sendToJail(address _player) public
+    {
+
+    }
+
+    function getBalance(address _player) view public
     {
 
     }
