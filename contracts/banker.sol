@@ -14,10 +14,11 @@ contract Banker {
 
     function addPlayers(address _player) public
     {
-        require(players.length < 4, "Maximum players should be 4");
+        require(players.length < 7, "Maximum players should be 6");
         players.push(_player);
     }
 
+    /// @dev Use this fuction to either ban players or kick them post-bankruptcy
     function removePlayer(uint _index) public
     {
         delete players[_index];
