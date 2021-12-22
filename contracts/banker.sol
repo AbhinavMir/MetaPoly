@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "hardhat/console.sol";
+import "./property.sol";
 
 contract Banker {
     address public banker;
@@ -14,7 +14,7 @@ contract Banker {
 
     function addPlayers(address _player) public
     {
-        require(players.length < 4);
+        require(players.length < 4, "Maximum players should be 4");
         players.push(_player);
     }
 
