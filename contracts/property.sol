@@ -5,8 +5,7 @@ contract Property {
     address public banker;
     address[] public players;
 
-    struct ownedProperty
-    {
+    struct ownedProperty {
         address owner;
         bytes23 name;
         uint8 id;
@@ -19,19 +18,16 @@ contract Property {
         bool mortgaged;
     }
 
-    function addPlayers(address _player) public
-    {
+    function addPlayers(address _player) public {
         require(players.length < 4);
         players.push(_player);
     }
 
-    function removePlayer(uint _index) public
-    {
+    function removePlayer(uint256 _index) public {
         delete players[_index];
     }
 
-    function distributeCapital() public 
-    {
+    function distributeCapital() public {
         /// @dev Initiate game with function
     }
 }
