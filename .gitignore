@@ -3,6 +3,19 @@ node_modules
 coverage
 coverage.json
 typechain
+.env.example
+.eslintignore
+.eslintrc.js
+.eslintrc.json
+.solhint.json
+package-lock.json
+.prettierignore
+.solhintignore
+.soliumignore
+yarn.lock
+.stylelintrc.js
+.stylelintrc.json
+.stylelintrc.yaml
 
 #Hardhat files
 cache
