@@ -7,16 +7,14 @@ import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ITournament} from "./interfaces/ITournament";
+import {ITournament} from "./interfaces/ITournament.sol";
 
-contract Tournament is
-    ITournament,
-    ERC721URIStorage,
-    Pausable {
+contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
 
     using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
     Counters.Counter private _tokenIds;
+    Counter.Counter private _playerMove;
     
     bytes32 public constant JAILED_USER = keccak256("JAILED_USER");
     bytes32 public constant BLACKLISTED_USER = keccak256("BLACKLISTED_USER");
