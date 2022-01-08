@@ -3,7 +3,8 @@ pragma solidity ^0.8.0;
 
 interface ITournament {
 
-    struct Match {
+    struct Match 
+    {
         address[] participants;
         address[] winners;
     }
@@ -26,9 +27,14 @@ interface ITournament {
         uint8 houseCost;
         bool mortgaged;
         bool owned;
+        Player owner;
     }
 
-    function nextTurn() external; // 
+    // function rollDice() external; - Creating random numbers every roll is very expensive using Chainlink.
+
+    function nextTurn() external;
+
+    function movePlayer(uint8 _playerIndex, uint8 _playerPosition) external;
 
     function passTurn(address _player) external;
 
