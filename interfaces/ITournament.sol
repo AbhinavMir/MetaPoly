@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.11;
 
 interface ITournament {
 
@@ -15,6 +15,7 @@ interface ITournament {
         uint8 position;
         uint8[] propertyOwned;
         uint256 balance;   
+        uint256 netWorth;
         address playerAddress;
     }
 
@@ -25,6 +26,7 @@ interface ITournament {
         uint8 baseRent;
         uint8 houseCounter;
         uint8 houseCost;
+        uint8 houseRent;
         bool mortgaged;
         bool owned;
         Player owner;
@@ -64,25 +66,29 @@ interface ITournament {
 
     function passGo() external;
 
-    function forfeit(address _player) external;
+    function forfeit(uint8 _playerId) external;
 
     // function getPlayer(address _player) public view returns (Player);
 
     // function getProperty(uint8 _propertyIndex) public view returns (Property);
 
-    event MatchStarted(uint8 _players);
-    event MatchEnded(uint8 _players);
-    event PlayerTurn(address _player);
-    event PlayerPassed(address _player);
-    event PropertyBought(address _player, uint8 _propertyIndex);
-    event PropertySold(address _player, uint8 _propertyIndex);
-    event PropertyMortgaged(address _player, uint8 _propertyIndex);
-    event PropertyUnmortgaged(address _player, uint8 _propertyIndex);
-    event PropertyHouseBought(address _player, uint8 _propertyIndex, uint8 _numberOfHouses);
-    event PropertyHouseSold(address _player, uint8 _propertyIndex, uint8 _numberOfHouses);
-    event PassedGo(address _player);
-    event PlayerJailed(address _player);
-    event PlayerUnjailed(address _player);
-    event PlayerWon(address _player);
-    event PlayerLost(address _player);
+    event matchStarted(uint8 _players);
+    event matchEnded(uint8 _players);
+    event playerTurn(address _player);
+    event playerMoved(uint8 _byDice, uint8 _playerId, uint8 _playerPosition);
+    event playerPassed(address _player);
+    event propertyBought(address _player, uint8 _propertyIndex);
+    event propertySold(address _player, uint8 _propertyIndex);
+    event propertyMortgaged(address _player, uint8 _propertyIndex);
+    event propertyUnmortgaged(address _player, uint8 _propertyIndex);
+    event propertyHouseBought(address _player, uint8 _propertyIndex, uint8 _numberOfHouses);
+    event propertyHouseSold(address _player, uint8 _propertyIndex, uint8 _numberOfHouses);
+    event passedGo(address _player);
+    event playerJailed(uint8 _playerId);
+    event playerUnjailed(address _player);
+    event playerWon(address _player);
+    event playerLost(address _player);
+    event turnEnded(uint8 _playerId, uint8 _nextPlayerId);
+    event playerForfeited(uint8 _playerId);
+    event playerPaidRent(address _player, uint8 _propertyIndex, uint256 _amount);
 }

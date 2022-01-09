@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.11;
 
 import {ERC721URIStorage, ERC721} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -10,7 +10,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ITournament} from "../interfaces/ITournament.sol";
 import {IVault} from "../interfaces/IVault.sol";
 
-contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
+contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl, IVault {
 
     using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
@@ -39,7 +39,6 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
     uint256 private _startTime;
 
     Vault public registrationVault;
-    Vault public prizeVault;
 
     Counters.Counter _prizeIds;
     Counters.Counter _adminCounter;
@@ -49,21 +48,20 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
     constructor(
         string memory _URI,
         address _token,
+        uint _fee, // Should be able to modify
         uint256 _start,
-        address _admin
+        address _admin,
+        bool _isPrivate
     ) ERC721("Jinushi", "JNSHI") ERC721URIStorage() {
         if (_fee > 0) {
-            _registrationFee = _fee;
+            _registrationFee = _fee; 
             registrationVault = new Vault(_token, address(this));
         }
-        prizeVault = new Vault(_token, address(this));
 
         _tournamentURI = _URI;
         _rewardToken = _token;
         _startTime = _start;
-        _registrationClosingTime = _registrationClosesAt;
-
-        _isPrivate = true;
+        _isPrivate = _isPrivate;
 
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
     }
@@ -74,47 +72,32 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
     function addPlayer(address _player) external onlyRole(PLAYER) {
         _addPlayer(_player);}
 
-    function _addAdmin(address _newAdmin) private {
-        grantRole(ADMIN, _newAdmin);}
-
-    function _addPlayer(
-        int8 _index,
-        uint8 position,
-        uint8[] memory propertyOwned,
-        uint256 balance,
-        address player
-    ) private {
-        _index = _playerIdCounter.current();
-
-        grantRole(PLAYER, _player);
-        _newPlayer = new Player(
-            _index,
-            position,
-            propertyOwned,
-            balance,
-            player
-        );
-        
-        players.push(_newPlayer);
-        _playerIdCounter.increment();
-
-        emit PlayerAdded(_newPlayer);
+    
+    function forfeit(uint8 _playerId) external onlyRole(PLAYER) {
+        _player = playerByAddress[_playerId];
+        require(_player == msg.sender);
+        _removePlayer(_player);
     }
 
+    function _removePlayer(uint8 _playerId) internal onlyRole(PLAYER)
+    {
+        delete players[_playerId];
+        _playerIdCounter.decrement();
+    }
 
     function movePlayer(uint8 _byDice, uint8 _playerId) external
     {
         Player playerInstance = players[_playerId];
         playerInstance.position = (playerInstance.position + _byDice) % 24;
         grantRole(ACTIVE_TURN, playerInstance.playerAddress);
-        _playerMove.increment();
-        emit PlayerMoved(player, _byDice);
+        emit playerMoved(player, _byDice, playerInstance.position);
     }
 
     function endTurn(uint8 _playerId) external onlyRole(ACTIVE_TURN) {
         Player playerInstance = players[_playerId];
         revokeRole(ACTIVE_TURN, playerInstance.playerAddress);
-        emit TurnEnded(player);
+        _playerMoveCounter.increment();
+        emit turnEnded(_playerId, _playerMoveCounter.current());
     }
 
     function buildHouses(uint8 _propertyIndex, uint8 _numberOfHouses) external onlyRole(ACTIVE_TURN) {
@@ -128,12 +111,32 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
         Player playerInstance = players[_playerId];
         grantRole(JAILED_USER, playerInstance.playerAddress);
         playerInstance.position = 10;
-        emit PlayerMoved(player, 10); 
+        emit playerJailed(_playerId);
     }
 
-    function _buildHouse(uint8 _propertyIndex) private {
-        require(properties[_propertyIndex].owner.balance > properties[_propertyIndex].houseCost, "Not enough funds");
-        properties[_propertyIndex].owner.balance -= properties[_propertyIndex].houseCost;
+    function payRent(uint8 _playerId, uint8 _propertyIndex) external onlyRole(ACTIVE_TURN) {
+        Player playerInstance = players[_playerId]; // instantiate player instance
+        Player ownerInstance = players[Property[_propertyIndex].owner._index]; // instantiate current owner
+        Property propertyInstance = properties[_propertyIndex]; // instantiate property instance
+        uint rent = propertyInstance.baseRent + (propertyInstance.houseRent * propertyInstance.houseCounter);
+        
+        // Check if player has enough money or net worth to pay rent
+        if(playerInstance.balance >= propertyInstance.rent){
+            if(playerInstance.netWorth >= propertyInstance.rent){
+                playerInstance.balance -= rent;
+                propertyInstance.owner.balance += rent;
+                emit playerPaidRent(_playerId, _propertyIndex, propertyInstance.rent);
+            } else {
+                forfeit(_playerId);
+                emit playerForfeited(_playerId);
+                emit playerPaidRent(_playerId, _propertyIndex, propertyInstance.rent);
+                playerInstance.balance -= propertyInstance.rent;
+                propertyInstance.owner.balance += propertyInstance.rent;
+            }
+        }
+        playerInstance.balance -= propertyInstance.rent;
+        propertyInstance.owner.balance += propertyInstance.rent;
+        emit playerPaidRent(_playerId, ownerInstance._index , rent);
     }
 
     function buyProperty(uint8 _propertyIndex, uint8 _playerId) external onlyRole(ACTIVE_TURN) {
@@ -155,5 +158,52 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
 
     function getPlayerPosition(uint8 _playerId) external view returns (uint8) {
         return players[_playerId].position;
+    }
+
+    function getPlayerProperty(uint8 _playerId) external view returns (uint8[]) {
+        return players[_playerId].propertyOwned;
+    }
+
+    function getPlayerPropertyCount(uint8 _playerId) external view returns (uint8) {
+        return players[_playerId].propertyOwned.length;
+    }
+
+    function getPlayerNetworth(uint8 _playerId) external view returns (uint256) {}
+
+    /* 
+    Internal Functions
+    */
+
+    function _addAdmin(address _newAdmin) internal {
+        grantRole(ADMIN, _newAdmin);}
+
+    function _addPlayer(
+        int8 _index,
+        uint8 position,
+        uint8[] memory propertyOwned,
+        uint256 balance,
+        address player
+    ) internal {
+        _index = _playerIdCounter.current();
+
+        grantRole(PLAYER, _player);
+        _newPlayer = new Player(
+            _index,
+            position,
+            propertyOwned,
+            balance,
+            player
+        );
+        
+        players.push(_newPlayer);
+        _playerIdCounter.increment();
+
+        emit PlayerAdded(_newPlayer);
+    }
+
+    function _buildHouse(uint8 _propertyIndex) internal {
+        require(properties[_propertyIndex].owner.balance > properties[_propertyIndex].houseCost, "Not enough funds");
+        properties[_propertyIndex].owner.balance = properties[_propertyIndex].owner.balance - properties[_propertyIndex].houseCost;
+
     }
 }

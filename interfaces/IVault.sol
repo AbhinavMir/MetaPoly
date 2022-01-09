@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.11;
 
 interface IVault {
 
@@ -16,10 +16,10 @@ interface IVault {
 
     function withdrawFund(address _registeree, uint256 _value) external;
 
-    function getVault(address _vault) public view returns (Vault);
+    // function getVault(address _vault) public view returns (Vault);
 
-    function getVaultBalance(address _vault) public view returns (uint256);
+    function getVaultBalance(address _vault) external view returns (uint256);
 
-    function getVaultBalanceOf(address _vault, address _owner) public view returns (uint256);
+    function getVaultBalanceOf(address _vault, address _owner) external view returns (uint256);
 
 }
