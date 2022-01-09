@@ -105,14 +105,20 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
     function movePlayer(uint8 _byDice, uint8 _playerId) external
     {
         Player playerInstance = players[_playerId];
-        grantRole(ACTIVE_TURN, playerInstance.playerAddress);
         playerInstance.position = (playerInstance.position + _byDice) % 24;
+        grantRole(ACTIVE_TURN, playerInstance.playerAddress);
         _playerMove.increment();
         emit PlayerMoved(player, _byDice);
     }
 
+    function endTurn(uint8 _playerId) external onlyRole(ACTIVE_TURN) {
+        Player playerInstance = players[_playerId];
+        revokeRole(ACTIVE_TURN, playerInstance.playerAddress);
+        emit TurnEnded(player);
+    }
+
     function buildHouses(uint8 _propertyIndex, uint8 _numberOfHouses) external onlyRole(ACTIVE_TURN) {
-        require(msg.sender == Property[_propertyIndex].owner);
+        require(msg.sender == Property[_propertyIndex].owner, "You are not the owner of this property");
         for(uint8 i = 0; i < _numberOfHouses; i++) {
             _buildHouse(_propertyIndex);
         }
@@ -126,9 +132,28 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
     }
 
     function _buildHouse(uint8 _propertyIndex) private {
-        require(properties[_propertyIndex].owner.balance > properties[_propertyIndex].houseCost);
+        require(properties[_propertyIndex].owner.balance > properties[_propertyIndex].houseCost, "Not enough funds");
         properties[_propertyIndex].owner.balance -= properties[_propertyIndex].houseCost;
     }
 
+    function buyProperty(uint8 _propertyIndex, uint8 _playerId) external onlyRole(ACTIVE_TURN) {
+        require(properties[_propertyIndex].isOwned == false, "Property is already owned");
+        Player playerInstance = players[_playerId];
+        require(playerInstance.balance > properties[_propertyIndex].price, "Player does not have enough money");
+        playerInstance.balance -= properties[_propertyIndex].price;
+    }
 
+    function sellProperty(uint8 _propertyIndex, uint8 _playerId) external onlyRole(ACTIVE_TURN) {
+        require(properties[_propertyIndex].isOwned == true, "Property is not owned");
+        Player playerInstance = players[_playerId];
+        playerInstance.balance += properties[_propertyIndex].price;
+    }
+
+    function getPlayerBalance(uint8 _playerId) external view returns (uint256) {
+        return players[_playerId].balance;
+    }
+
+    function getPlayerPosition(uint8 _playerId) external view returns (uint8) {
+        return players[_playerId].position;
+    }
 }
