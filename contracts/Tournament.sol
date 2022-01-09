@@ -15,8 +15,9 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
     using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
     Counters.Counter private _playerIdCounter;
-    Counters.Counter private _playerMove;
+    Counters.Counter private _playerMoveCounter; // Decides who has to move
     
+    bytes32 public constant ACTIVE_TURN = keccak256("ACTIVE_TURN"); // User who has to move
     bytes32 public constant JAILED_USER = keccak256("JAILED_USER");
     bytes32 public constant BLACKLISTED_USER = keccak256("BLACKLISTED_USER");
     bytes32 public constant ADMIN = keccak256("DEFAULT_ADMIN_ROLE");
@@ -100,15 +101,28 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
         emit PlayerAdded(_newPlayer);
     }
 
-    function buildHouses(uint8 _propertyIndex, uint8 _numberOfHouses) external {
+
+    function movePlayer(uint8 _byDice, uint8 _playerId) external
+    {
+        Player playerInstance = players[_playerId];
+        grantRole(ACTIVE_TURN, playerInstance.playerAddress);
+        playerInstance.position = (playerInstance.position + _byDice) % 24;
+        _playerMove.increment();
+        emit PlayerMoved(player, _byDice);
+    }
+
+    function buildHouses(uint8 _propertyIndex, uint8 _numberOfHouses) external onlyRole(ACTIVE_TURN) {
         require(msg.sender == Property[_propertyIndex].owner);
         for(uint8 i = 0; i < _numberOfHouses; i++) {
             _buildHouse(_propertyIndex);
         }
     }
 
-    function goToJail(address _player) external onlyRole(BANKER) {
-       grantRole(JAILED_USER, _player);
+    function goToJail(uint8 _playerId) external onlyRole(BANKER) {
+        Player playerInstance = players[_playerId];
+        grantRole(JAILED_USER, playerInstance.playerAddress);
+        playerInstance.position = 10;
+        emit PlayerMoved(player, 10); 
     }
 
     function _buildHouse(uint8 _propertyIndex) private {
@@ -116,5 +130,5 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl {
         properties[_propertyIndex].owner.balance -= properties[_propertyIndex].houseCost;
     }
 
-    
+
 }

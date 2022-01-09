@@ -15,7 +15,7 @@ interface ITournament {
         uint8 position;
         uint8[] propertyOwned;
         uint256 balance;   
-        address player;
+        address playerAddress;
     }
 
     struct Property
