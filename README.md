@@ -11,4 +11,6 @@ This is basically Monopoly on Crypto, with a few rule changes.
 - [ ] Vault fee lock
 - [ ] Deciding winner
 - [ ] Buying properties
-- [ ] 
+- [ ] CREATE2 factory
+
+[Under Construction]
