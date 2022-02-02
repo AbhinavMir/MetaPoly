@@ -1,4 +1,4 @@
-## Money Machine
+## Metapoly
 
 This is basically Monopoly on Crypto, with a few rule changes.
 
