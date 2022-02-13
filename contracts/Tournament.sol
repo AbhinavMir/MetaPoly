@@ -18,53 +18,35 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl, 
     Counters.Counter private _playerMoveCounter; // Decides who has to move
     
     bytes32 public constant ACTIVE_TURN = keccak256("ACTIVE_TURN"); // User who has to move
-    bytes32 public constant JAILED_USER = keccak256("JAILED_USER");
-    bytes32 public constant BLACKLISTED_USER = keccak256("BLACKLISTED_USER");
+    bytes32 public constant BLOCKED_USER = keccak256("BLOCKED_USER");
+    // bytes32 public constant BLACKLISTED_USER = keccak256("BLACKLISTED_USER");
     bytes32 public constant ADMIN = keccak256("DEFAULT_ADMIN_ROLE");
     bytes32 public constant PLAYER = keccak256("PLAYER");
     bytes32 public constant BANKER = keccak256("BANKER");
 
-    string private _tournamentURI;
-    bool terminated;
-
-    Player[] public players;
     mapping(address => Player) public playerByAddress;
+    // uint8[] public players;
 
-    Property[] public properties;
+    mapping(uint8 => Property) public properties;
 
-    address private _rewardToken;
-    uint8 private _PrizeMoneyTracker;
-    uint256 private _registrationFee;
+    // address private _rewardToken;
+    // uint256 private _registrationFee;
 
     uint256 private _startTime;
 
-    Vault public registrationVault;
+    // Vault public registrationVault;
 
     Counters.Counter _prizeIds;
     Counters.Counter _adminCounter;
 
-    bool private _isPrivate;
+    // bool private _isPrivate;
 
     constructor(
         string memory _URI,
-        address _token,
-        uint _fee, // Should be able to modify
-        uint256 _start,
-        address _admin,
-        bool _isPrivate
-    ) ERC721("Jinushi", "JNSHI") ERC721URIStorage() {
-        if (_fee > 0) {
-            _registrationFee = _fee; 
-            registrationVault = new Vault(_token, address(this));
-        }
-
-        _tournamentURI = _URI;
-        _rewardToken = _token;
-        _startTime = _start;
-        _isPrivate = _isPrivate;
-
-        _setupRole(DEFAULT_ADMIN_ROLE, _admin);
-    }
+        uint _fee,
+        address _admin
+     ) {}
+    
 
     function addAdmin(address _newAdmin) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _addAdmin(_newAdmin);}
@@ -72,32 +54,28 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl, 
     function addPlayer(address _player) external onlyRole(PLAYER) {
         _addPlayer(_player);}
 
-    
-    function forfeit(uint8 _playerId) external onlyRole(PLAYER) {
-        _player = playerByAddress[_playerId];
-        require(_player == msg.sender);
+    function forfeit(address _player) external onlyRole(PLAYER) {
+        require(_player == msg.sender, "Only player can forfeit");
         _removePlayer(_player);
     }
 
-    function _removePlayer(uint8 _playerId) internal onlyRole(PLAYER)
+    function _removePlayer(address _playerAddress) internal 
     {
-        delete players[_playerId];
+        delete playerByAddress[_playerAddress];
         _playerIdCounter.decrement();
     }
 
-    function movePlayer(uint8 _byDice, uint8 _playerId) external
-    {
-        Player playerInstance = players[_playerId];
-        playerInstance.position = (playerInstance.position + _byDice) % 24;
-        grantRole(ACTIVE_TURN, playerInstance.playerAddress);
-        emit playerMoved(player, _byDice, playerInstance.position);
+    function movePlayer(uint8 _numberDice, address _playerAddress) external onlyPlayer(_playerAddress) {
+        playerByAddress[_playerAddress].position = (playerByAddress.position + _numberDice) % 24;
+        grantRole(ACTIVE_TURN, playerByAddress[_playerAddress].playerAddress);
+        // // emit playerMoved(_numberDice, msg.sender);
     }
 
-    function endTurn(uint8 _playerId) external onlyRole(ACTIVE_TURN) {
-        Player playerInstance = players[_playerId];
-        revokeRole(ACTIVE_TURN, playerInstance.playerAddress);
+    function endTurn(address _playerAddress) external onlyRole(ACTIVE_TURN) {
+        revokeRole(ACTIVE_TURN, msg.sender);
+        grantRole(PLAYER, msg.sender);
         _playerMoveCounter.increment();
-        emit turnEnded(_playerId, _playerMoveCounter.current());
+        // emit turnEnded(_playerMoveCounter.current(), msg.sender);
     }
 
     function buildHouses(uint8 _propertyIndex, uint8 _numberOfHouses) external onlyRole(ACTIVE_TURN) {
@@ -107,103 +85,142 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl, 
         }
     }
 
-    function goToJail(uint8 _playerId) external onlyRole(BANKER) {
-        Player playerInstance = players[_playerId];
-        grantRole(JAILED_USER, playerInstance.playerAddress);
-        playerInstance.position = 10;
-        emit playerJailed(_playerId);
+    function goToJail(address _player) external onlyRole(BANKER) {
+        grantRole(BLOCKED_USER, playerByAddress[_player].playerAddress);
+        playerByAddress[_player].position = 10;
+        // emit playerJailed(_playerId);
     }
 
-    function payRent(uint8 _playerId, uint8 _propertyIndex) external onlyRole(ACTIVE_TURN) {
-        Player playerInstance = players[_playerId]; // instantiate player instance
-        Player ownerInstance = players[Property[_propertyIndex].owner._index]; // instantiate current owner
-        Property propertyInstance = properties[_propertyIndex]; // instantiate property instance
-        uint rent = propertyInstance.baseRent + (propertyInstance.houseRent * propertyInstance.houseCounter);
-        
-        // Check if player has enough money or net worth to pay rent
-        if(playerInstance.balance >= propertyInstance.rent){
-            if(playerInstance.netWorth >= propertyInstance.rent){
-                playerInstance.balance -= rent;
-                propertyInstance.owner.balance += rent;
-                emit playerPaidRent(_playerId, _propertyIndex, propertyInstance.rent);
-            } else {
-                forfeit(_playerId);
-                emit playerForfeited(_playerId);
-                emit playerPaidRent(_playerId, _propertyIndex, propertyInstance.rent);
-                playerInstance.balance -= propertyInstance.rent;
-                propertyInstance.owner.balance += propertyInstance.rent;
-            }
+    function payRent(uint8 _propertyIndex) external onlyPlayer
+    {
+        require(Property[_propertyIndex].owner != msg.sender, "You are the owner of this property");
+        uint256 _rent = Property[_propertyIndex].baseRent;
+        uint8 _houseCounter = Property[_propertyIndex].houseCounter;
+        uint8 _houseRent = Property[_propertyIndex].houseRent;
+        address _houseOwner = Property[_propertyIndex].owner;
+
+        if(Property[_propertyIndex].isMortgaged) {
+            _rent = 0;
         }
-        playerInstance.balance -= propertyInstance.rent;
-        propertyInstance.owner.balance += propertyInstance.rent;
-        emit playerPaidRent(_playerId, ownerInstance._index , rent);
+
+        else if(Property[_propertyIndex].houseCounter > 0) {
+            _rent = _rent + (_houseCounter * _rent);
+        }
+
+        else{
+            _rent = _rent;
+        }
+
+        _pay(_rent, _houseOwner, msg.sender);
     }
 
-    function buyProperty(uint8 _propertyIndex, uint8 _playerId) external onlyRole(ACTIVE_TURN) {
-        require(properties[_propertyIndex].isOwned == false, "Property is already owned");
-        Player playerInstance = players[_playerId];
-        require(playerInstance.balance > properties[_propertyIndex].price, "Player does not have enough money");
-        playerInstance.balance -= properties[_propertyIndex].price;
+    function _pay(uint256 _amount, address _to, address _from) internal 
+    {
+        require(_amount > 0, "Amount must be greater than 0");
+        require(_to != _from, "Cannot pay to yourself");
+        require(msg.sender == _from, "Only the sender can pay");
+        require(msg.sender != _to, "Cannot pay to yourself");
+        require(msg.sender == playerByAddress[_from].playerAddress, "Only the sender can pay");
+        require(playerByAddress[_from].balance >= _amount, "Not enough balance");
+        playerByAddress[_from].balance = playerByAddress[_from].balance - _amount;
+        playerByAddress[_to].balance = playerByAddress[_to].balance + _amount;
+        emit paid(_amount, _to, _from);
+    }
+
+    function _transferProperty(address _to, uint8 _propertyIndex) internal {
+        require(Property[_propertyIndex].owner == msg.sender, "You are not the owner of this property");
+        Property[_propertyIndex].owner = _to;
+        // emit propertyTransferred(_to, _propertyIndex);
+    }
+
+    function buyProperty(uint8 _propertyIndex, uint8 _playerId) external onlyPlayer
+    {
+        /*
+        bytes32 name;
+        uint8 price;
+        uint8 position;
+        uint8 baseRent;
+        uint8 houseCounter;
+        uint8 houseCost;
+        uint8 houseRent;
+        bool mortgaged;
+        bool owned;
+        Player owner;
+        */
+
+        require(properties[_propertyIndex].owned == false, "Property is already owned");
+        require(properties[_propertyIndex].owner != msg.sender, "You are the owner of this property");
+        require(playerByAddress[msg.sender].balance >= properties[_propertyIndex].price, "You don't have enough money");
+        properties[_propertyIndex].owned = true;
+        properties[_propertyIndex].owner = msg.sender;
+        playerByAddress[msg.sender].balance -= properties[_propertyIndex].price;
+        playerByAddress[msg.sender].properties.push(_propertyIndex);
+        // emit propertyBought(_propertyIndex, msg.sender);
     }
 
     function sellProperty(uint8 _propertyIndex, uint8 _playerId) external onlyRole(ACTIVE_TURN) {
-        require(properties[_propertyIndex].isOwned == true, "Property is not owned");
-        Player playerInstance = players[_playerId];
-        playerInstance.balance += properties[_propertyIndex].price;
+        require(properties[_propertyIndex].owner == msg.sender, "You are not the owner of this property");
+        require(properties[_propertyIndex].owned == true, "Property is not owned");
+        require(properties[_propertyIndex].mortgaged == false, "Property is mortgaged");
+        require(properties[_propertyIndex].houseCounter == 0, "Property has houses");
+        require(properties[_propertyIndex].houseCost == 0, "Property has houses");
+        require(properties[_propertyIndex].houseRent == 0, "Property has houses");
+        require(properties[_propertyIndex].baseRent == 0, "Property has houses");
+        require(properties[_propertyIndex].price == 0, "Property has houses");
+        properties[_propertyIndex].owned = false;
+        properties[_propertyIndex].owner = 0;
+        playerByAddress[msg.sender].balance += (properties[_propertyIndex].price)/2;
+        playerByAddress[msg.sender].properties.remove(_propertyIndex);
+        // emit propertySold(_propertyIndex, msg.sender);
     }
 
-    function getPlayerBalance(uint8 _playerId) external view returns (uint256) {
-        return players[_playerId].balance;
+    function getPlayerNetworth(address _player) external view returns (uint256) 
+    {
+        uint256 oldNetWorth = playerByAddress[_player].netWorth;
+        uint256 newNetWorth = 0;
+        for(uint8 i = 0; i < playerByAddress[_player].propertyOwned.length; i++) {
+            newNetWorth += (properties[playerByAddress[_player].propertyOwned[i]].price)/2;
+        }
+
+        newNetWorth += playerByAddress[_player].balance;
+        return newNetWorth;
     }
 
-    function getPlayerPosition(uint8 _playerId) external view returns (uint8) {
-        return players[_playerId].position;
+    function finePlayer(uint8 _playerId, uint256 amount) external onlyPlayer(_playerId) {
+        require(playerByAddress[_playerId].balance >= amount, "You don't have enough money");
+        playerByAddress[_playerId].balance -= amount;
+        // emit playerPaidIncomeTax(_playerId);
     }
-
-    function getPlayerProperty(uint8 _playerId) external view returns (uint8[]) {
-        return players[_playerId].propertyOwned;
-    }
-
-    function getPlayerPropertyCount(uint8 _playerId) external view returns (uint8) {
-        return players[_playerId].propertyOwned.length;
-    }
-
-    function getPlayerNetworth(uint8 _playerId) external view returns (uint256) {}
-
-    /* 
-    Internal Functions
-    */
 
     function _addAdmin(address _newAdmin) internal {
-        grantRole(ADMIN, _newAdmin);}
+        grantRole(DEFAULT_ADMIN_ROLE, _newAdmin);}
 
-    function _addPlayer(
-        int8 _index,
-        uint8 position,
-        uint8[] memory propertyOwned,
-        uint256 balance,
-        address player
-    ) internal {
-        _index = _playerIdCounter.current();
-
-        grantRole(PLAYER, _player);
-        _newPlayer = new Player(
-            _index,
-            position,
-            propertyOwned,
-            balance,
-            player
-        );
-        
-        players.push(_newPlayer);
-        _playerIdCounter.increment();
-
-        emit PlayerAdded(_newPlayer);
+    function _addPlayer(address _playerAddress) internal {
+        require(playerByAddress[_playerAddress] == false, "Player already exists");
+        playerByAddress[_playerAddress] = Player(_playerAddress);
+        playerByAddress[_playerAddress].playerId = _playerIdCounter.increment();
+        playerByAddress[_playerAddress].balance = 1500;
     }
-
+    
     function _buildHouse(uint8 _propertyIndex) internal {
         require(properties[_propertyIndex].owner.balance > properties[_propertyIndex].houseCost, "Not enough funds");
         properties[_propertyIndex].owner.balance = properties[_propertyIndex].owner.balance - properties[_propertyIndex].houseCost;
+    }
 
+    function _destroyHouse(uint8 _propertyIndex) internal {
+        require(properties[_propertyIndex].owner.balance > properties[_propertyIndex].houseCost, "Not enough funds");
+        properties[_propertyIndex].owner.balance = properties[_propertyIndex].owner.balance - properties[_propertyIndex].houseCost;
+    }
+
+    function _isActive(address user) internal view returns (bool) {
+        require(Player[user]._isActive == false, "User is not active");
+        return true;
+    }
+
+    modifier onlyPlayer(address _playerAddress)
+    {
+        require(msg.sender == _playerAddress, "Not Player");
+        require(_isActive(msg.sender), "Inactive User");
+        _;
     }
 }

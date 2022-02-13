@@ -14,13 +14,10 @@ library DiceRoll {
 
     function increment(Counter storage counter) internal {
         unchecked {
-            if(counter._value =< 4){
-                counter._value += 1;
-            }
-
+            if(counter._value <= 4){
+                counter._value += 1;}
             else{
-                reset(counter);
-            }
+                reset(counter);}
         }
     }
 

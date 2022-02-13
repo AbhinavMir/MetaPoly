@@ -17,19 +17,30 @@ interface ITournament {
         uint256 balance;   
         uint256 netWorth;
         address playerAddress;
+        bool _isActive;
     }
 
     struct Property
     {
         bytes32 name;
+        uint8 price;
         uint8 position;
         uint8 baseRent;
         uint8 houseCounter;
         uint8 houseCost;
         uint8 houseRent;
-        bool mortgaged;
-        bool owned;
         Player owner;
+        // address owner;
+        PropertyState state;
+    }
+
+    enum PropertyState 
+    {
+        Unowned,
+        Owned,
+        Mortgaged,
+        ForSale,
+        SwapRequested
     }
 
     // function rollDice() external; - Creating random numbers every roll is very expensive using Chainlink.
@@ -75,6 +86,7 @@ interface ITournament {
     event matchStarted(uint8 _players);
     event matchEnded(uint8 _players);
     event playerTurn(address _player);
+    event playerAdded(uint8 _playerIndex, address _playerAddress);
     event playerMoved(uint8 _byDice, uint8 _playerId, uint8 _playerPosition);
     event playerPassed(address _player);
     event propertyBought(address _player, uint8 _propertyIndex);
