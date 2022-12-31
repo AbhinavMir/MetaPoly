@@ -14,49 +14,47 @@ contract Tournament is  ITournament, ERC721URIStorage, Pausable, AccessControl, 
 
     using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
+    IERC20 public immutable token;
     Counters.Counter private _playerIdCounter;
     Counters.Counter private _playerMoveCounter; // Decides who has to move
     
-    bytes32 public constant ACTIVE_TURN = keccak256("ACTIVE_TURN"); // User who has to move
-    bytes32 public constant BLOCKED_USER = keccak256("BLOCKED_USER");
+    string public baseURI;
+    bytes32 public constant ACTIVE_PLAYER = keccak256("ACTIVE_PLAYER");
     // bytes32 public constant BLACKLISTED_USER = keccak256("BLACKLISTED_USER");
     bytes32 public constant ADMIN = keccak256("DEFAULT_ADMIN_ROLE");
     bytes32 public constant PLAYER = keccak256("PLAYER");
     bytes32 public constant BANKER = keccak256("BANKER");
+    bytes32 public constant ISJAILED = keccak256("ISJAILED");
+    Vault public vault;
 
     mapping(address => Player) public playerByAddress;
-    // uint8[] public players;
-
     mapping(uint8 => Property) public properties;
-
-    // address private _rewardToken;
-    // uint256 private _registrationFee;
-
     uint256 private _startTime;
-
-    // Vault public registrationVault;
-
-    Counters.Counter _prizeIds;
-    Counters.Counter _adminCounter;
-
-    // bool private _isPrivate;
-
+    Counters.Counter private _adminCounter;
     constructor(
-        string memory _URI,
-        uint _fee,
-        address _admin
-     ) {}
+        string memory _baseURI,
+        uint256 _registrationFee,
+        uint256 _startTime,
+        uint256 _TTL,
+        uint256 _maxPlayers,
+        mapping(address => Player) _players
+     ) 
+     {
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        baseURI = _baseURI;
+        playerByAddress = _players;
+     }
     
 
     function addAdmin(address _newAdmin) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _addAdmin(_newAdmin);}
 
-    function addPlayer(address _player) external onlyRole(PLAYER) {
-        _addPlayer(_player);}
-
     function forfeit(address _player) external onlyRole(PLAYER) {
         require(_player == msg.sender, "Only player can forfeit");
         _removePlayer(_player);
+        // revoke PLAYER role
+        revokeRole(PLAYER, msg.sender);
+        emit playerForfeited(_playerId);
     }
 
     function _removePlayer(address _playerAddress) internal 

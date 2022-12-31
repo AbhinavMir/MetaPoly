@@ -13,13 +13,8 @@ interface IVault {
     }
 
     function depositFund(address _registeree, uint256 _value) external;
-
     function withdrawFund(address _registeree, uint256 _value) external;
-
-    // function getVault(address _vault) public view returns (Vault);
-
     function getVaultBalance(address _vault) external view returns (uint256);
-
     function getVaultBalanceOf(address _vault, address _owner) external view returns (uint256);
 
 }

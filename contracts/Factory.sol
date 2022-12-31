@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache 2.0
-pragma solidity 0.8.11;
+pragma solidity ^0.8.11;
 
 import "./Tournament.sol";
 
@@ -7,61 +7,47 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract Factory is UUPSUpgradeable, OwnableUpgradeable {
+    mapping(address => Tournament) public activeTournaments;
 
-    address rewardToken;
-    address[] public tournaments;
-    address[] public auxTournaments;
-
-    constructor() {}
-
-    function initialize(address _rewardToken) public initializer {
+    constructor() {
         __Ownable_init();
         __UUPSUpgradeable_init();
-        rewardToken = _rewardToken;
     }
-
-    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     event NewTournament(address _tournament, address owner);
     event TournamentDeleted(address _tournament);
 
-    function newTournament(string memory _baseURI, uint256 registrationFee, uint startTime) external returns (address)
-    {
-        Tournament _newTournament;
-        
-        _newTournament = new Tournament(
+    function newTournament(
+        string memory _baseURI,
+        uint256 _registrationFee,
+        uint256 _startTime,
+        uint256 _TTL,
+        uint256 _maxPlayers,
+        bytes32 _salt,
+        mapping(address => Player) memory _players
+    ) external returns (address) {
+        Tournament tournament = new Tournament{salt: _salt}(
             _baseURI,
-            rewardToken,
-            registrationFee,
-            startTime,
-            registrationClosesAt,
-            msg.sender
+            _registrationFee,
+            _startTime,
+            _TTL,
+            _maxPlayers,
+            _players
         );
-        
-        tournaments.push(address(_newTournament));
-
-        emit NewTournament(address(_newTournament), msg.sender);
-        return address(_newTournament);
+        activeTournaments[address(tournament)] = tournament;
+        emit NewTournament(address(tournament), msg.sender);
+        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), _salt, keccak256(abi.encodePacked(_baseURI, _registrationFee, _startTime, _TTL, _maxPlayers, _players))));
+        return address(tournament);
     }
 
-
     function deleteTournament(address _tournamentAddress) external onlyOwner {
-        for (uint i = 0; i < tournaments.length; i++){
-            if(tournaments[i] != _tournamentAddress)
-                {
-                    auxTournaments.push(tournaments[i]);
-            }}
-
-        tournaments = auxTournaments;
-        delete auxTournaments;
+        delete activeTournaments[_tournamentAddress];
         emit TournamentDeleted(_tournamentAddress);
     }
 
     // ------------ View Functions ------------ //
 
-    function getTournament(uint _id)
-    external view returns(address)
-    {
+    function getTournament(uint256 _id) external view returns (address) {
         return tournaments[_id];
     }
 }
