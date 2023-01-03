@@ -1,6 +1,6 @@
 ## Metapoly
 
-> Repo isn't maintained currently, will work on it again after a while! Come back soon.
+> I AM BACK! 
 
 This is basically Monopoly on Crypto, with a few rule changes.
 
