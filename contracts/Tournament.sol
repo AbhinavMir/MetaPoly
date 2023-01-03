@@ -214,9 +214,9 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
         // emit propertyTransferred(_to, _propertyIndex);
     }
 
-    function buyProperty(uint8 _propertyIndex, uint8 _playerId)
+    function buyProperty(uint8 _propertyIndex, uint8 _playerId, address _player)
         external
-        onlyPlayer
+        activePlayer(_player)
     {
         /*
         bytes32 name;
@@ -236,18 +236,14 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
             "Property is already owned"
         );
         require(
-            properties[_propertyIndex].owner != msg.sender,
-            "You are the owner of this property"
-        );
-        require(
-            playerByAddress[msg.sender].balance >=
+            playerByAddress[_player].balance >=
                 properties[_propertyIndex].price,
             "You don't have enough money"
         );
         properties[_propertyIndex].owned = true;
-        properties[_propertyIndex].owner = msg.sender;
-        playerByAddress[msg.sender].balance -= properties[_propertyIndex].price;
-        playerByAddress[msg.sender].properties.push(_propertyIndex);
+        properties[_propertyIndex].owner = playerByAddress[_player];
+        playerByAddress[_player].balance -= properties[_propertyIndex].price;
+        playerByAddress[_player].propertyOwned.push(_propertyIndex);
         // emit propertyBought(_propertyIndex, msg.sender);
     }
 
@@ -356,18 +352,23 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
         view
         returns (uint256)
     {
-        uint256 rent = 0;
+        // base rent + house rent * house counter
+        return
+            properties[_propertyIndex].baseRent +
+            (properties[_propertyIndex].houseRent *
+                properties[_propertyIndex].houseCounter);
     }
 
-    function _destroyHouse(uint8 _propertyIndex) internal {
+    function destroyHouse(uint8 _propertyIndex, uint256 numberOfHouses) external activePlayer(properties[_propertyIndex].owner.playerAddress) {
         require(
-            properties[_propertyIndex].owner.balance >
-                properties[_propertyIndex].houseCost,
-            "Not enough funds"
+            properties[_propertyIndex].houseCounter >= numberOfHouses,
+            "Not enough houses"
         );
-        properties[_propertyIndex].owner.balance =
-            properties[_propertyIndex].owner.balance -
-            properties[_propertyIndex].houseCost;
+        properties[_propertyIndex].houseCounter -= numberOfHouses;
+        // return the owner 50% of the house cost ~ this is reduced house tax
+        properties[_propertyIndex].owner.balance +=
+            (properties[_propertyIndex].houseCost * numberOfHouses) /
+            2;
     }
 
     function _isActive(address user) internal view returns (bool) {
