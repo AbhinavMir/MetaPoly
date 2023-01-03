@@ -9,11 +9,11 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 /// @dev `Vault` a contract that holds funds for Prize Pools
 contract Vault is AccessControl {
     using SafeERC20 for IERC20;
-    address public  prizePool;
-    IERC20 public immutable  token;
+    address public prizePool;
+    IERC20 public immutable token;
     bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
     bytes32 public constant PLAYER_ROLE = keccak256("PLAYER_ROLE");
-
+    uint256 public registrationFee;
     event Deposited(address indexed from, uint256 amount);
     event Withdrawal(address indexed to, uint256 amount);
     event PrizePoolSet(address indexed prizePool);
@@ -21,13 +21,22 @@ contract Vault is AccessControl {
     event OwnerAdded(address indexed owner);
     event OwnerRemoved(address indexed owner);
 
-    constructor(IERC20 _token) {
+    constructor(
+        IERC20 _token,
+        uint256 _registrationFee
+    ) {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         token = _token;
+        registrationFee = _registrationFee;
     }
 
-    function depositTo(address to, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        token.safeTransferFrom(msg.sender, to, amount);
-        emit Deposited(to, amount);
+    function payRegistrationFee() external onlyRole(PLAYER_ROLE) {
+        token.safeTransferFrom(msg.sender, address(this), registrationFee);
+        emit Deposited(msg.sender, registrationFee);
+    }
+
+    function payOut(address _to, uint256 _amount) internal onlyRole(OWNER_ROLE) {
+        token.safeTransfer(_to, _amount);
+        emit Withdrawal(_to, _amount);
     }
 }

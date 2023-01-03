@@ -24,7 +24,8 @@ contract Factory is UUPSUpgradeable, OwnableUpgradeable {
         uint256 _TTL,
         uint256 _maxPlayers,
         bytes32 _salt,
-        mapping(address => Player) memory _players
+        string[] memory _propertyNames,
+        uint256[] memory _propertyPrices
     ) external returns (address) {
         Tournament tournament = new Tournament{salt: _salt}(
             _baseURI,
@@ -32,7 +33,8 @@ contract Factory is UUPSUpgradeable, OwnableUpgradeable {
             _startTime,
             _TTL,
             _maxPlayers,
-            _players
+            _players,
+            _properties
         );
         activeTournaments[address(tournament)] = tournament;
         emit NewTournament(address(tournament), msg.sender);

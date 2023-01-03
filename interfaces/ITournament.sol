@@ -103,4 +103,5 @@ interface ITournament {
     event turnEnded(uint8 _playerId, uint8 _nextPlayerId);
     event playerForfeited(uint8 _playerId);
     event playerPaidRent(address _player, uint8 _propertyIndex, uint256 _amount);
+    event DiceThrown(uint256 result, uint256 blockNumber, string warning);
 }
