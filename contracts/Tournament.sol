@@ -26,7 +26,7 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
     bytes32 public constant ADMIN = keccak256("DEFAULT_ADMIN_ROLE");
     bytes32 public constant PLAYER = keccak256("PLAYER");
     bytes32 public constant BANKER = keccak256("BANKER");
-    bytes32 public constant ISJAILED = keccak256("ISJAILED");
+    bytes32 public constant JAILED_USER = keccak256("JAILED_USER");
 
     /*
      * Mapping variables for address->Player struct, and for propertyId->Property struct - can also use arrays
@@ -115,8 +115,11 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
     }
 
     function _removePlayer(address _playerAddress) internal {
+        if(hasRole(ACTIVE_PLAYER, _playerAddress)) {
+            _removeRole(ACTIVE_PLAYER, _playerAddress);
+        }
         revokeRole(PLAYER, _playerAddress);
-        delete playerByAddress[_playerAddress];
+        playerByAddress[_playerAddress]._isActive = false;
         _playerIdCounter.decrement();
     }
 
@@ -138,7 +141,7 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
         revokeRole(ACTIVE_TURN, msg.sender);
         grantRole(PLAYER, msg.sender);
         _playerMoveCounter.increment();
-        // emit turnEnded(_playerMoveCounter.current(), msg.sender);
+        emit turnEnded(_playerMoveCounter.current(), msg.sender);
     }
 
     function buildHouses(uint8 _propertyIndex, uint8 _numberOfHouses)
@@ -155,9 +158,9 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
     }
 
     function goToJail(address _player) external onlyRole(BANKER) {
-        grantRole(BLOCKED_USER, playerByAddress[_player].playerAddress);
+        grantRole(JAILED_USER, playerByAddress[_player].playerAddress);
         playerByAddress[_player].position = 10;
-        // emit playerJailed(_playerId);
+        emit playerJailed(_playerId);
     }
 
     function payRent(uint8 _propertyIndex) external onlyPlayer {
