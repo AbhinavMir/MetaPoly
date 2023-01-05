@@ -77,7 +77,6 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {u
         uint256[] memory _properties;
         playerByAddress[_playerAddress] = Player(_playerIdCounter, 0, _properties, _startingBalance, 0, _playerAddress, true);}
 
-
     function addAdmin(address _newAdmin) external onlyRole(DEFAULT_ADMIN_ROLE) {_addAdmin(_newAdmin);}
 
     function forfeit(address _player) external onlyRole(PLAYER) {require(_player == msg.sender, "Only player can forfeit");
