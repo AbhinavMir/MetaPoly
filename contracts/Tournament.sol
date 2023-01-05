@@ -8,6 +8,9 @@ import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ITournament} from "../interfaces/ITournament.sol";
+import "../interfaces/ITournament.sol";
+import "../interfaces/ITournament.sol";
+import "../interfaces/ITournament.sol";
 
 contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
     using Counters for Counters.Counter;
@@ -32,6 +35,7 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
      * Mapping variables for address->Player struct, and for propertyId->Property struct - can also use arrays
      */
     mapping(address => Player) public playerByAddress;
+    mapping(uint256 => address) public moveCounterFromPlayerIdToAddress;
     Property[] public properties;
 
     /*
@@ -77,6 +81,10 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
                 )
             );
         }
+    }
+
+    function nextPlayer() internal {
+        _playerMoveCounter.increment();
     }
 
     function joinTournament() external {
@@ -213,8 +221,10 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
             Property[_propertyIndex].owner == msg.sender,
             "You are not the owner of this property"
         );
-        Property[_propertyIndex].owner = _to;
-        // emit propertyTransferred(_to, _propertyIndex);
+        playerByAddress[_to].properties.push(_propertyIndex);
+        Player newOwner = playerByAddress[_to];
+        Property[_propertyIndex].owner = newOwner;
+        emit propertyTransferred(_to, _propertyIndex);
     }
 
     function buyProperty(uint8 _propertyIndex, uint8 _playerId, address _player)
@@ -235,7 +245,7 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
         */
 
         require(
-            properties[_propertyIndex].owned == false,
+            properties[_propertyIndex].isOwned == false,
             "Property is already owned"
         );
         require(
@@ -243,53 +253,38 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
                 properties[_propertyIndex].price,
             "You don't have enough money"
         );
-        properties[_propertyIndex].owned = true;
+        properties[_propertyIndex].isOwned = true;
         properties[_propertyIndex].owner = playerByAddress[_player];
         playerByAddress[_player].balance -= properties[_propertyIndex].price;
         playerByAddress[_player].propertyOwned.push(_propertyIndex);
-        // emit propertyBought(_propertyIndex, msg.sender);
+        emit propertyBought(_propertyIndex, msg.sender);
     }
 
     function sellProperty(uint8 _propertyIndex, uint8 _playerId)
         external
-        onlyRole(ACTIVE_TURN)
     {
         require(
-            properties[_propertyIndex].owner == msg.sender,
+            properties[_propertyIndex].owner.playerAddress == msg.sender,
             "You are not the owner of this property"
         );
         require(
-            properties[_propertyIndex].owned == true,
-            "Property is not owned"
+            properties[_propertyIndex].isOwned == true,
+            "Property is not owned by anyone"
         );
         require(
-            properties[_propertyIndex].mortgaged == false,
+            properties[_propertyIndex].isMortgaged == false,
             "Property is mortgaged"
         );
         require(
             properties[_propertyIndex].houseCounter == 0,
             "Property has houses"
         );
-        require(
-            properties[_propertyIndex].houseCost == 0,
-            "Property has houses"
-        );
-        require(
-            properties[_propertyIndex].houseRent == 0,
-            "Property has houses"
-        );
-        require(
-            properties[_propertyIndex].baseRent == 0,
-            "Property has houses"
-        );
-        require(properties[_propertyIndex].price == 0, "Property has houses");
-        properties[_propertyIndex].owned = false;
-        properties[_propertyIndex].owner = 0;
+        properties[_propertyIndex].isOwned = false;
         playerByAddress[msg.sender].balance +=
             (properties[_propertyIndex].price) /
             2;
         playerByAddress[msg.sender].properties.remove(_propertyIndex);
-        // emit propertySold(_propertyIndex, msg.sender);
+        emit propertySold(_propertyIndex, msg.sender);
     }
 
     function getPlayerNetworth(address _player)
@@ -313,16 +308,14 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
         return newNetWorth;
     }
 
-    function finePlayer(uint8 _playerId, uint256 amount)
-        external
-        onlyPlayer(_playerId)
+    function finePlayer(uint8 _playerId, uint256 amount) internal
     {
         require(
             playerByAddress[_playerId].balance >= amount,
             "You don't have enough money"
         );
         playerByAddress[_playerId].balance -= amount;
-        // emit playerPaidIncomeTax(_playerId);
+        emit playerPaidIncomeTax(_playerId);
     }
 
     function _addAdmin(address _newAdmin) internal {
@@ -334,8 +327,8 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {
             playerByAddress[_playerAddress] == false,
             "Player already exists"
         );
-        Player newPlayer = new Player(_playerAddress, 1500, 0, []);
-        playerByAddress[_playerAddress] = newPlayer;
+        uint256[] memory _properties;
+        playerByAddress[_playerAddress] = Player(_playerIdCounter, 0, _properties, _startingBalance, 0, _playerAddress, true);
     }
 
     function _buildHouse(uint8 _propertyIndex) internal {
