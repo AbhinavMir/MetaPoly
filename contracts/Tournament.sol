@@ -8,9 +8,6 @@ import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ITournament} from "../interfaces/ITournament.sol";
-import "../interfaces/ITournament.sol";
-import "../interfaces/ITournament.sol";
-import "../interfaces/ITournament.sol";
 
 contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {using Counters for Counters.Counter;
     using SafeERC20 for IERC20;
@@ -105,7 +102,7 @@ contract Tournament is ITournament, ERC721URIStorage, Pausable, AccessControl {u
         playerByAddress[_player].position = 10;
         emit playerJailed(_playerId);}
 
-    function payRent(uint8 _propertyIndex) external onlyPlayer {require(Property[_propertyIndex].owner != msg.sender, "You are the owner of this property");
+    function payRent(uint8 _propertyIndex) external activePlayer {require(Property[_propertyIndex].owner != msg.sender, "You are the owner of this property");
         uint256 _rent = Property[_propertyIndex].baseRent;
         uint8 _houseCounter = Property[_propertyIndex].houseCounter;
         uint8 _houseRent = Property[_propertyIndex].houseRent;
