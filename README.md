@@ -1,7 +1,5 @@
 ## Metapoly
 
-> I AM BACK! 
-
 This is basically Monopoly on Crypto, with a few rule changes.
 
 - Trades can happen only property for property.
